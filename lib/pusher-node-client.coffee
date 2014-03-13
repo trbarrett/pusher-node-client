@@ -95,8 +95,8 @@ class PusherClient extends EventEmitter
         @recieveMessage msg
       @connection.on 'close', () =>
         @connect()
-    console.log "trying connecting to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.1&protocol=5&flash=false" if @verbose
-    @client.connect "wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.1&protocol=5&flash=false"
+    console.log "trying connecting to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false" if @verbose
+    @client.connect "wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false"
 
   recieveMessage: (msg) =>
     if msg.type is 'utf8' 
