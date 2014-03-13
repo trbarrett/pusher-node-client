@@ -17,8 +17,9 @@ class PusherClient extends EventEmitter
     name: "disconnected"
     socket_id: null
 
-  constructor: (credentials) ->
+  constructor: (credentials, verbose) ->
     @credentials = credentials
+    @verbose = verbose
 
   subscribe: (channel_name, channel_data = {}) =>
     stringToSign = "#{@state.socket_id}:#{channel_name}:#{JSON.stringify(channel_data)}"
@@ -34,15 +35,14 @@ class PusherClient extends EventEmitter
 
     channel = @channels[channel_name]
     if channel
-      new Error "Existing subscription to #{channel_name}"
-      channel
+      channel #use the existing subscription
     else
       channel = new PusherChannel channel_name, channel_data
       @channels[channel_name] = channel
       channel
   
   unsubscribe: (channel_name, channel_data = {}) =>
-    console.log "unsubscribing from #{channel_name}"
+    console.log "unsubscribing from #{channel_name}" if @verbose
     stringToSign = "#{@state.socket_id}:#{channel_name}:#{JSON.stringify(channel_data)}"
     auth = @credentials.key + ':' + crypto.createHmac('sha256', @credentials.secret).update(stringToSign).digest('hex');
     req = 
@@ -87,15 +87,15 @@ class PusherClient extends EventEmitter
     @client =  new WebSocket()  
     @channels = {}
     @client.on 'connect', (connection) =>
-      console.log 'connected to pusher '
+      console.log 'connected to pusher' if @verbose
       @connection = connection
-      console.log @connection.state
+      console.log @connection.state if @verbose
       @connection.on 'message', (msg) =>
         @resetActivityCheck()
         @recieveMessage msg
       @connection.on 'close', () =>
         @connect()
-    console.log "trying connecting to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.1&protocol=5&flash=false"
+    console.log "trying connecting to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.1&protocol=5&flash=false" if @verbose
     @client.connect "wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.1&protocol=5&flash=false"
 
   recieveMessage: (msg) =>
@@ -104,13 +104,13 @@ class PusherClient extends EventEmitter
       if payload.event is "pusher:connection_established"
         data = JSON.parse payload.data
         @state = { name: "connected", socket_id: data.socket_id }
-        console.log @state
+        console.log @state if @verbose
         @emit 'connect'
       if payload.event is "pusher_internal:subscription_succeeded"
         channel = @channels[payload.channel]
         if channel then channel.emit 'success'
       channel = @channels[payload.channel]
-      console.log "got event #{payload.event} on #{(new Date).toLocaleTimeString()}"
+      console.log "got event #{payload.event} on #{(new Date).toLocaleTimeString()}" if @verbose
       if payload.event is "pusher:error"
         console.log payload
       if channel 
