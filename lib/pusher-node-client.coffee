@@ -111,9 +111,17 @@ class PusherClient extends EventEmitter
         if channel then channel.emit 'success'
       channel = @channels[payload.channel]
       console.log "got event #{payload.event} on #{(new Date).toLocaleTimeString()}" if @verbose
+      
+      data = null
+      if payload.data and payload.data.length
+        data = JSON.parse payload.data
+
       if payload.event is "pusher:error"
-        console.log payload
-      if channel 
-        channel.emit payload.event, JSON.parse payload.data
+        console.log "encountered pusher:error : " + data.code + " (" + data.message + ")"
+        @emit payload.event, data
+      else if channel 
+        channel.emit payload.event, data
+      else
+        @emit payload.event, data
 
 module.exports.PusherClient = PusherClient
