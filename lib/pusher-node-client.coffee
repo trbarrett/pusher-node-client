@@ -73,15 +73,20 @@ class PusherClient extends EventEmitter
         @waitingTimeout = setTimeout(
           () =>
             console.log "disconnecting because of inactivity at #{(new Date).toLocaleTimeString()}"
-            _(@channels).each (channel) =>
-                @unsubscribe channel.channel_name, channel.channel_data
-            console.log "connetcing again at #{(new Date).toLocaleTimeString()}"
-            if @connection.state isnt "open"
-              @connect()
+            @reconnect()
           30000
         )
       120000
     )
+
+  reconnect: () =>
+    console.log "reconnecting at #{(new Date).toLocaleTimeString()}"
+    if @connection.connected
+      _(@channels).each (channel) =>
+        @unsubscribe channel.channel_name, channel.channel_data
+      @connection.close() #we'll connect again when the 'close' event is raised on the connection
+    else
+      @connect()
 
   connect: () =>
     @client =  new WebSocket()  
@@ -93,10 +98,23 @@ class PusherClient extends EventEmitter
       @connection.on 'message', (msg) =>
         @resetActivityCheck()
         @recieveMessage msg
-      @connection.on 'close', () =>
-        @connect()
-    console.log "trying connecting to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false" if @verbose
+      @connection.on 'close', @onClose
+    console.log "trying to connect to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false" if @verbose
     @client.connect "wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false"
+
+  onClose: (reasonCode, description) =>
+    if reasonCode or description
+      console.log "connection was closed with error code: " + reasonCode + " (" + description + ")"
+
+    if reasonCode >= 4000 and reasonCode <= 4099
+      @emit 'error', data # the problem is with the application, they'll need to handle it or die
+    else if reasonCode >= 4100 and reasonCode <= 4199
+      console.log "over capacity, reconnecting in 1 second"
+      _.delay(@reconnect, 1000)
+    else if reasonCode >= 4200 and reasonCode <= 4299
+      @reconnect() # connection closed, reconnect immediatley
+    else
+      @reconnect() #without knowing what went wrong, we should just try to reconnect
 
   recieveMessage: (msg) =>
     if msg.type is 'utf8' 
@@ -117,8 +135,12 @@ class PusherClient extends EventEmitter
         data = JSON.parse payload.data
 
       if payload.event is "pusher:error"
+        #see the pusher docs: http://pusher.com/docs/pusher_protocol#error-codes
         console.log "encountered pusher:error : " + data.code + " (" + data.message + ")"
-        @emit payload.event, data
+        if data.code >= 4000 and data.code <= 4099
+          @emit 'error', data #the problem with the application, they'll need to handle it or die
+        else #let the client handle the pusher error
+          @emit payload.event, data 
       else if channel 
         channel.emit payload.event, data
       else
