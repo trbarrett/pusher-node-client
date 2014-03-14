@@ -136,11 +136,16 @@ class PusherClient extends EventEmitter
 
       if payload.event is "pusher:error"
         #see the pusher docs: http://pusher.com/docs/pusher_protocol#error-codes
-        console.log "encountered pusher:error : " + data.code + " (" + data.message + ")"
-        if data.code >= 4000 and data.code <= 4099
-          @emit 'error', data #the problem with the application, they'll need to handle it or die
-        else #let the client handle the pusher error
-          @emit payload.event, data 
+        if data
+          console.log "encountered pusher:error : " + data.code + " (" + data.message + ")"
+          if data.code >= 4000 and data.code <= 4099
+            @emit 'error', data #the problem with the application, they'll need to handle it or die
+          else #let the client handle the pusher error
+            @emit payload.event, data 
+        else
+          #the pusher docs indicate that we should get a data object, if we don't let the application deal with it or die
+          console.log "encountered pusher:error *without data*"
+          @emit 'error'
       else if channel 
         channel.emit payload.event, data
       else
