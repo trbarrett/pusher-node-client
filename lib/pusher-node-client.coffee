@@ -68,7 +68,7 @@ class PusherClient extends EventEmitter
     if @waitingTimeout then clearTimeout @waitingTimeout
     @activityTimeout = setTimeout(
       () =>
-        console.log "pinging pusher to see if active at #{(new Date).toLocaleTimeString()}"
+        console.log "pinging pusher to see if active at #{(new Date).toLocaleTimeString()}" if @verbose
         @connection.sendUTF JSON.stringify({ event: "pusher:ping", id: uuid.v1(), data: {} })
         @waitingTimeout = setTimeout(
           () =>
@@ -128,7 +128,7 @@ class PusherClient extends EventEmitter
         channel = @channels[payload.channel]
         if channel then channel.emit 'success'
       channel = @channels[payload.channel]
-      console.log "got event #{payload.event} on #{(new Date).toLocaleTimeString()}" if @verbose
+      console.log "got event '#{payload.event}' in [#{payload.channel || "__PusherConnection__"}] on #{(new Date).toLocaleTimeString()}" if @verbose
       
       data = null
       if payload.data and payload.data.length
