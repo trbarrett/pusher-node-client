@@ -102,9 +102,19 @@ class PusherClient extends EventEmitter
     console.log "trying to connect to pusher on - wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false" if @verbose
     @client.connect "wss://ws.pusherapp.com:443/app/#{@credentials.key}?client=node-pusher-server&version=0.0.9&protocol=5&flash=false"
 
+  close: () =>
+    @closedOnPurpose = true
+    if @connection.connected
+      _(@channels).each (channel) =>
+        @unsubscribe channel.channel_name, channel.channel_data
+    @connection.close()
+
   onClose: (reasonCode, description) =>
     if reasonCode or description
       console.log "connection was closed with error code: " + reasonCode + " (" + description + ")"
+
+    if @closedOnPurpose
+      return
 
     if reasonCode >= 4000 and reasonCode <= 4099
       @emit 'error', data # the problem is with the application, they'll need to handle it or die
