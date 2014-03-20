@@ -105,6 +105,8 @@ class PusherClient extends EventEmitter
   close: () =>
     @closedOnPurpose = true
     if @connection.connected
+      if @activityTimeout then clearTimeout @activityTimeout
+      if @waitingTimeout then clearTimeout @waitingTimeout
       _(@channels).each (channel) =>
         @unsubscribe channel.channel_name, channel.channel_data
     @connection.close()
